@@ -1,0 +1,28 @@
+# ===== Keil 编译产物 =====
+OBJ/
+Listings/
+Objects/
+Output/
+*.o
+*.d
+*.crf
+*.axf
+*.hex
+*.bin
+*.lst
+*.map
+*.htm
+*.lnp
+*.dep
+*.iex
+*.sct
+*.bak
+JLinkLog.txt
+*.uvguix.*
+
+# ===== 工具软件（体积大，不入库）=====
+Tools/
+
+# ===== 系统文件 =====
+Thumbs.db
+desktop.ini
