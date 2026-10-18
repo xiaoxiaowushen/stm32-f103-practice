@@ -1,4 +1,5 @@
 #include "stm32f10x.h"
+#include "usart.h"
 
 void delay(u32 count)
 {
@@ -7,8 +8,10 @@ void delay(u32 count)
 }
 int main(void)
 {
+	
 	u8 on =0;
 	GPIO_InitTypeDef s;
+	uart_init(9600); 
 	RCC_APB2PeriphClockCmd(RCC_APB2Periph_GPIOA | RCC_APB2Periph_GPIOC,ENABLE);
 	s.GPIO_Pin = GPIO_Pin_8;
 	s.GPIO_Mode = GPIO_Mode_Out_PP;
@@ -28,7 +31,9 @@ int main(void)
 			delay(1000000);
 			if(GPIO_ReadInputDataBit(GPIOC,GPIO_Pin_5)==0)
 			{
+				
 				on = !on;
+				printf("pressed,on = %d\r\n",on);
 				if(on)GPIO_ResetBits(GPIOA,GPIO_Pin_8);
 				else GPIO_SetBits(GPIOA,GPIO_Pin_8);
 				while(GPIO_ReadInputDataBit(GPIOC,GPIO_Pin_5)==0);
