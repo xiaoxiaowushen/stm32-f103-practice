@@ -55,7 +55,7 @@ void TIM3_IRQHandler(void)//TIM3中断处理函数
 }
 
 int main(void)
-{
+	{
 	GPIO_InitTypeDef s;
 	
 	uart_init(9600);

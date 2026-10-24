@@ -34,7 +34,7 @@ int main(void)
 	GPIO_Init(GPIOC,&s);
 	GPIO_SetBits(GPIOA,GPIO_Pin_8);
 	
-	NVIC_PriorityGroupConfig(NVIC_PriorityGroup_2);
+
 	GPIO_EXTILineConfig(GPIO_PortSourceGPIOC, GPIO_PinSource5);
 	
 	q.EXTI_Line = EXTI_Line5;
@@ -48,6 +48,9 @@ int main(void)
 	p.NVIC_IRQChannelSubPriority = 1;
 	p.NVIC_IRQChannelCmd = ENABLE;
 	NVIC_Init(&p);
+	NVIC_PriorityGroupConfig(NVIC_PriorityGroup_2);
+	
+	TIM3_Init(9999,7199);
 	
 	while(1)
 	{

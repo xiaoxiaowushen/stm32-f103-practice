@@ -43,7 +43,10 @@ void TIM3_IRQHandler(void)
 
 int main(void)
 {
+	
 	GPIO_InitTypeDef s;
+	
+	uart_init(9600);
 	NVIC_PriorityGroupConfig(NVIC_PriorityGroup_2);
 	RCC_APB2PeriphClockCmd(RCC_APB2Periph_GPIOA,ENABLE);
 	
