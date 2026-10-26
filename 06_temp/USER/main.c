@@ -70,7 +70,9 @@ int main(void)
     u16 adcx;
 		u32 t100; 
 	  u32 mv;
-	
+		u32 threshold = 3600;
+		u8 tick = 0;
+		static u8 key_up = 1;
 		LED_Init();
     delay_init();
 	//调用延时函数
@@ -84,6 +86,20 @@ int main(void)
 	//内部传感器ADC初始化函数
     while(1)
     {
+			 if(GPIO_ReadInputDataBit(GPIOC, GPIO_Pin_5) == 0)      /* 读到 0 = 按下 */
+			 {
+				 if(key_up)
+				 {
+					 key_up = 0;
+					 threshold += 100;
+					 if(threshold > 4000) threshold = 3000;
+				 }
+			 }
+			 else
+			 {
+				 key_up = 1;
+			 }
+		
       adcx = Get_Adc_Average(16, 10);
 			
 			//读取 ADC 通道（这里是片内温度传感器通道），连续采 10 次 ADC 值，求平均值，结果赋值给 adcx
@@ -96,7 +112,7 @@ int main(void)
 			LCD_ShowxNum(76,90,mv%1000,3,16,0x80);//这里显示的是393
 			
 			
-			if(t100>3400)
+			if(t100>threshold)
 			{
 				BACK_COLOR = RED;
 				POINT_COLOR = WHITE;
@@ -104,6 +120,7 @@ int main(void)
 				blink =! blink;
 				if(blink)GPIO_ResetBits(GPIOA,GPIO_Pin_8);
 				else GPIO_SetBits(GPIOA,GPIO_Pin_8);
+				
 			}
 			else
 			{
@@ -114,6 +131,17 @@ int main(void)
 			}
 			LCD_ShowxNum(60,120,t100/100,2,16,0);
 			LCD_ShowxNum(84,120,t100%100,2,16,0x80);
+			LCD_ShowxNum(100, 150, threshold/100, 2, 16, 0);      /* 整数部分 */
+			LCD_ShowxNum(124, 150, threshold%100, 2, 16, 0x80); 
+			tick++;
+			if(tick >= 4)
+			{	
+        tick = 0;
+        printf("T=%d.%02d\r\n", t100/100, t100%100);
+				printf("T=%d.%02d  SET=%d.%02d\r\n", 
+        t100/100, t100%100, threshold/100, threshold%100);
+			}
+		
 			delay_ms(250);
     }
-}
+	}
