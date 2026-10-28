@@ -189,33 +189,103 @@ void Adc_Init(void)
 	
 	RCC_APB2PeriphClockCmd(RCC_APB2Periph_ADC1,ENABLE);
 	RCC_ADCCLKConfig(RCC_PCLK2_Div6);
+// > PCLK = **Peripheral Clock，外设总线时钟**
+
+// STM32F1 有两条 APB 外设总线，对应两个 PCLK：
+
+// 1. **PCLK1**：APB1 低速总线时钟，上限 36MHz
+// 挂载：USART2/3、I2C、SPI2、TIM2~7
+// 2. **PCLK2**：APB2 高速总线时钟，上限 72MHz
+// 挂载：GPIO、USART1、SPI1、**ADC1/ADC2**
+//意思是配置这个时钟通道 来源选 PCLK2，然后再 6 分频
+//PCLK2 = 72MHz
+//ADCCLK = 72MHz / 6 = 12MHz
+
 	ADC_DeInit(ADC1);
+//把 ADC1 所有相关寄存器恢复成上电默认值，清空之前的配置。
 	
 	s.ADC_Mode = ADC_Mode_Independent;
+//> **独立模式：ADC1 和 ADC2 互相独立，互不影响，各自单独工作。**
+
 	s.ADC_ScanConvMode = DISABLE;
+//扫描转换（Scanconvmode）模式 = 能不能自动依次扫描多个通道。
+
+// - ENABLE（开启扫描）：你配置好一组通道序列，ADC 转换完第 1 个通道，**自动接着转换下一个**，循环 / 顺序跑完通道列表，适合多通道连续采集。
+// - DISABLE（关闭扫描）：**只转换你当前选中的那 1 个通道**。转换完成一次就停，不会自动切下一个通道。
+
 	s.ADC_ContinuousConvMode = DISABLE;
+//连续转换（Continuousconv）模式 = 能不能自动重复采样
+
 	s.ADC_ExternalTrigConv = ADC_ExternalTrigConv_None;
+//这个成员用来选择 **ADC 规则组转换的触发源**
+// > 不使用外部硬件触发，采用软件触发
+// > External 外部，Trig 触发，Conv 转换
+// > 意思：**用什么信号来启动 ADC 的转换**
 	s.ADC_DataAlign = ADC_DataAlign_Right;
+//数据对齐方式 = ADC 采集到的 12 位数据，放在 16 位寄存器的低 12 位，高 4 位清零。
 	s.ADC_NbrOfChannel = 1;
+//`NbrOfChannel` = Number Of Channel，**通道数量**
+//含义：**规则转换序列里，一共有 1 个通道要转换**
 	ADC_Init(ADC1,&s);
+//提交ADC初始化结构体，完成 ADC1 的初始化
 	
 	ADC_TempSensorVrefintCmd(ENABLE);
+//> 打开片内温度传感器和 Vrefint 通道。Vrefint 是芯片内部的 1.2V 稳压参考电压。
 	ADC_Cmd(ADC1,ENABLE);
+
 	
 	ADC_ResetCalibration(ADC1);
+//**复位 ADC 校准**
+//ADC 内部自带校准电路，用来抵消内部的偏移误差，让采样电压更准。
 	while(ADC_GetResetCalibrationStatus(ADC1));
+
+//`ADC_GetResetCalibrationStatus(ADC1)`：读取【复位校准状态标志】
+
+// - 返回 **1**：复位校准**正在进行中，还没做完**
+// - 返回 **0**：复位校准**已经完成**
+
+// `while(条件)` 的规则：**条件为真，就一直循环卡住；条件为假，跳出循环往下走**
+
+// 所以这句大白话：
+
+// > 
+// > **只要复位校准还没做完（返回 1），我就原地等，不往下执行；等它做完变成 0 了，才退出 while，跑下一句 `ADC_StartCalibration`。**
+
 	ADC_StartCalibration(ADC1);
+//启动 ADC 自校准
 	while(ADC_GetCalibrationStatus(ADC1));
+//读取校准状态标志，等待校准完成
+
+//复位校准 → 等复位完成 → 启动校准 → 等校准完成。
+
 }
 
-u16 Get_Adc(u8 ch)
+u16 Get_Adc(u8 ch)//定义自己的 ADC 采集函数，名字叫 Get_Adc，参数是要采集的通道号 ch
 {
 	ADC_RegularChannelConfig(ADC1,ch,1,ADC_SampleTime_239Cycles5);
+//配置 ADC1 规则组通道，设置通道号、采样时间
+// 参数说明：
+
+// 1. ADCx：ADC1
+// 2. ADC_Channel：ch，就是传入的通道，比如 `ADC_Channel_0`
+// 3. Rank：通道在转换序列里的位置。你是单通道，固定填 `1`
+// 4. ADC_SampleTime：采样保持时间，`ADC_SampleTime_239Cycles5` = 239.5 个 ADCCLK 周期
 	ADC_SoftwareStartConvCmd(ADC1,ENABLE);
+//给 ADC 发一个软件命令，启动一次规则组转换
 	while(!ADC_GetFlagStatus(ADC1,ADC_FLAG_EOC));
+//查询 ADC 的某个标志位的状态，返回 SET (1) 或者 RESET (0)
+// 1. `ADC_GetFlagStatus`：去查 EOC
+// 2. `!`：取反
+//    - 没完成（返回 0） → !0=1 → while 条件成立，继续循环等待
+//    - 完成（返回 1） → !1=0 → 退出循环
+//    整体：**轮询等待 ADC 转换结束**
 	return ADC_GetConversionValue(ADC1);
+//读取 ADC1 规则转换的数据寄存器里的 12 位采样结果，然后把这个数值 return 出去
+
+//流程：设置通道 -> 启动转换 -> 等待转换完成 -> 读取结果
+
 }
-u16 Get_Adc_Average(u8 ch,u8 times)
+u16 Get_Adc_Average(u8 ch,u8 times)//定义自己的 ADC 采集平均值函数，名字叫 Get_Adc_Average，参数是要采集的通道号 ch 和采样次数 times
 {
 	u32 sum = 0;
 	u8 t;
