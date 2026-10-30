@@ -33,6 +33,8 @@ int main(void)
 	u32 mv;
 	u32 t_max;
 	u32 t_min;
+	u32 last_max;        
+	u32 last_min;
 	
 	led_init();
 	delay_init();
@@ -41,36 +43,56 @@ int main(void)
 	adc_init();
 	IIC_Init();
 
-	/* ===== 上电从 EEPROM 读历史最值 ===== */
+	
 	t_max = (AT24CXX_ReadOneByte(0) << 8) | AT24CXX_ReadOneByte(1);
 	t_min = (AT24CXX_ReadOneByte(2) << 8) | AT24CXX_ReadOneByte(3);
 
-	/* 新芯片是 0xFFFF，超出合理范围就当没数据 */
 	if(t_max == 0xFFFF || t_max < 2000 || t_max > 5000) t_max = 0;
 	if(t_min == 0xFFFF || t_min < 2000 || t_min > 5000) t_min = 99999;
+	
+	last_max = t_max;
+	last_min = t_min;
 
 	LCD_ShowString(60, 170, 200, 16, 16, "MAX:");
+	//显示函数
 	LCD_ShowString(60, 190, 200, 16, 16, "MIN:");
 
 	while(1)
 	{
 		adcx = Get_adc_average(16, 10);
 		mv   = adcx * 3300 / 4096;
+		//毫伏计算公式
 		t100 = (1430 - mv) * 1000 / 43 + 2500;
+		//计算转换公式
 
 
 		if(t100 > t_max) t_max = t100;
+		//如果t100>t_max 那么最大值就是t100
 		if(t100 < t_min) t_min = t100;
+		//如果t100<t_min 最小值就是t100
+		//这里就是为了让最大最小值实时变化
 
+		if(t_max != last_max)
+	{
+		last_max = t_max;
+		AT24CXX_WriteOneByte(0, t_max >> 8);
+		AT24CXX_WriteOneByte(1, t_max & 0xFF);
+	}
+	if(t_min != last_min)
+	{
+		last_min = t_min;
+		AT24CXX_WriteOneByte(2, t_min >> 8);
+		AT24CXX_WriteOneByte(3, t_min & 0xFF);
+	}
 	
 		LCD_ShowxNum(60, 60, adcx, 4, 16, 0);
-
+		//显示adcx的值
 
 		LCD_ShowxNum(60, 90, mv/1000, 1, 16, 0);
 		LCD_ShowxNum(76, 90, mv%1000, 3, 16, 0x80);
 
 
-		if(t100 > 3500)
+		if(t100 > 3500)//温度阈值35°
 		{
 			BACK_COLOR  = RED;
 			POINT_COLOR = WHITE;
