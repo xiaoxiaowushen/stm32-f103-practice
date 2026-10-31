@@ -335,7 +335,7 @@
               <MiscControls></MiscControls>
               <Define>STM32F10X_HD,USE_STDPERIPH_DRIVER</Define>
               <Undefine></Undefine>
-              <IncludePath>..\HARDWARE\LED;..\SYSTEM\delay;..\SYSTEM\sys;..\SYSTEM\usart;..\USER;..\STM32F10x_FWLib\inc;..\CORE;..\HARDWARE\LCD;..\HARDWARE\ITEMP;..\HARDWARE\ADC;..\HARDWARE\IIC;..\HARDWARE\24CXX</IncludePath>
+              <IncludePath>..\HARDWARE\LED;..\SYSTEM\delay;..\SYSTEM\sys;..\SYSTEM\usart;..\USER;..\STM32F10x_FWLib\inc;..\CORE;..\HARDWARE\LCD;..\HARDWARE\ITEMP;..\HARDWARE\ADC;..\HARDWARE\IIC;..\HARDWARE\24CXX;..\HARDWARE\HISTORY</IncludePath>
             </VariousControls>
           </Cads>
           <Aads>
@@ -408,6 +408,16 @@
               <FileName>adc.c</FileName>
               <FileType>1</FileType>
               <FilePath>..\HARDWARE\ADC\adc.c</FilePath>
+            </File>
+            <File>
+              <FileName>history.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>..\HARDWARE\HISTORY\history.c</FilePath>
+            </File>
+            <File>
+              <FileName>playback.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>..\HARDWARE\HISTORY\playback.c</FilePath>
             </File>
             <File>
               <FileName>24cxx.h</FileName>

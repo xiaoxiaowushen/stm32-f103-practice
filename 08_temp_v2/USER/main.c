@@ -6,148 +6,8 @@
 #include "24cxx.h"
 #include "adc.h"
 #include "stm32f10x.h"
-
-/* ============================================================
-   历史记录：EEPROM 存取
-   地址 0~1   : t_max（高字节 + 低字节）
-   地址 2~3   : t_min
-   地址 4~203 : 100 条历史温度，每条 2 字节
-   地址 204   : 写指针 wp（0~99）
-   ============================================================ */
-
-/*
- * 存一条温度进 EEPROM（环形缓冲）
- */
-void Savetemp(u32 t)
-{
-	u8 wp;
-	u16 addr;
-
-	wp = AT24CXX_ReadOneByte(204);
-
-	if(wp >= 100)                    /* 空白芯片读到 0xFF，或者数据坏了 */
-	{
-		wp = 0;
-		AT24CXX_WriteOneByte(204, 0);
-	}
-
-	addr = 4 + wp * 2;               /* 第 wp 条记录的起始地址 */
-
-	AT24CXX_WriteOneByte(addr,     t >> 8);      /* 高字节 */
-	AT24CXX_WriteOneByte(addr + 1, t & 0xFF);    /* 低字节 */
-
-	wp++;                            /* 写指针后移 */
-	if(wp >= 100) wp = 0;            /* 环形：满了绕回开头 */
-
-	AT24CXX_WriteOneByte(204, wp);
-}
-
-/*
- * 读第 index 条（0~99）
- */
-u32 ReadTemp(u8 index)
-{
-	u16 addr;
-	u32 temp;
-
-	if(index > 99) return 0;
-
-	addr = 4 + index * 2;
-	temp = (AT24CXX_ReadOneByte(addr) << 8) | AT24CXX_ReadOneByte(addr + 1);
-
-	return temp;
-}
-
-/* ============================================================
-   全局状态
-   ============================================================ */
-u8 playback   = 0;      /* 0 = 实时显示，1 = 回放模式 */
-u8 play_index = 0;      /* 回放时显示第几条 */
-
-/* ============================================================
-   GPIO 初始化
-   PA8 推挽输出（LED0），PC5 上拉输入（KEY0）
-   ============================================================ */
-void led_init(void)
-{
-	GPIO_InitTypeDef s;
-
-	RCC_APB2PeriphClockCmd(RCC_APB2Periph_GPIOA | RCC_APB2Periph_GPIOC, ENABLE);
-
-	s.GPIO_Pin   = GPIO_Pin_8;
-	s.GPIO_Mode  = GPIO_Mode_Out_PP;
-	s.GPIO_Speed = GPIO_Speed_50MHz;
-	GPIO_Init(GPIOA, &s);
-
-	s.GPIO_Pin  = GPIO_Pin_5;
-	s.GPIO_Mode = GPIO_Mode_IPU;
-	GPIO_Init(GPIOC, &s);
-
-	GPIO_SetBits(GPIOA, GPIO_Pin_8);
-}
-
-/*
- * 重画屏幕：清屏 + 画 MAX/MIN 标签
- * 切换模式时调用，避免上一屏的残留
- */
-void redraw_screen(void)
-{
-	LCD_Clear(WHITE);
-
-	POINT_COLOR = RED;
-	LCD_ShowString(60, 170, 200, 16, 16, "MAX:");
-	LCD_ShowString(60, 190, 200, 16, 16, "MIN:");
-
-	POINT_COLOR = BLUE;
-}
-
-/* ============================================================
-   按键处理
-   短按（< 1 秒）：实时 -> 回放 / 回放 -> 翻一页
-   长按（>= 1 秒）：退出回放
-   ============================================================ */
-void handle_key(void)
-{
-	u16 hold = 0;
-
-	delay_ms(10);                                    /* 消抖 */
-
-	if(GPIO_ReadInputDataBit(GPIOC, GPIO_Pin_5) != 0) return;
-
-	/* 测按住时长：每 50ms 记一次 */
-	while(GPIO_ReadInputDataBit(GPIOC, GPIO_Pin_5) == 0)
-	{
-		delay_ms(50);
-		hold++;
-	}
-
-	if(hold >= 20)                                   /* 按住 >= 1 秒：长按退出 */
-	{
-		if(playback == 1)
-		{
-			playback   = 0;
-			play_index = 0;
-			redraw_screen();
-		}
-	}
-	else if(playback == 0)                           /* 短按 + 实时：进入回放 */
-	{
-		playback   = 1;
-		play_index = 0;
-		redraw_screen();
-	}
-	else                                             /* 短按 + 回放：翻一页 */
-	{
-		play_index++;
-
-		if(play_index >= 100 || ReadTemp(play_index) == 0)
-		{
-			playback   = 0;                          /* 翻完了一圈，自动退出 */
-			play_index = 0;
-			redraw_screen();
-		}
-	}
-}
+#include "history.h"
+#include "playback.h"
 
 /* ============================================================
    主函数
@@ -164,7 +24,7 @@ int main(void)
 	u32 last_min;
 	u32 save_tick;
 	u32 rec;
-
+	
 	led_init();
 	delay_init();
 	uart_init(9600);
